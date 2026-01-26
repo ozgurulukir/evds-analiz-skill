@@ -22,6 +22,20 @@ TCMB Elektronik Veri Dağıtım Sistemi (EVDS) API entegrasyonu ile Türkiye eko
 - **Zaman serisi modelleri**: ARIMA, VAR
 - **Ek analizler**: Mevsimsellik, Granger nedensellik testi
 
+### 🆕 Gelişmiş Analiz Özellikleri (v2.0)
+
+| Özellik | Açıklama |
+|---------|----------|
+| 🔍 **Veri Kalitesi Kontrolü** | Eksik veri, outlier, süreklilik analizi + kalite puanı (100 üzerinden) |
+| 🎯 **Anomali/Outlier Tespiti** | IQR, Z-score, MAD, Rolling, Isolation Forest yöntemleri |
+| 📅 **Mevsimsellik Temizleme** | STL, MA, X11 ile seasonally adjusted seri üretimi |
+| 📊 **Çoklu Değişken Analizi** | Korelasyon (Pearson/Spearman/Kendall), PCA, Granger nedensellik |
+| 📋 **Dashboard Modu** | Tek komutla kapsamlı interaktif HTML dashboard |
+| 📈 **Durağanlık Testleri** | ADF, KPSS testleri |
+| 🔄 **Frekans Dönüşümü** | Günlük→Aylık, Haftalık→Çeyreklik vb. dönüşümler |
+
+**Yeni modül:** `scripts/gelismis_analiz.py`
+
 ### Görselleştirme
 - Plotly tabanlı interaktif HTML grafikler
 - Hover ile değer gösterimi, zoom/pan desteği
