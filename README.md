@@ -6,6 +6,7 @@ TCMB Elektronik Veri Dağıtım Sistemi (EVDS) API entegrasyonu ile Türkiye eko
 
 ### Veri Erişimi
 - TCMB EVDS API üzerinden doğrudan veri çekme
+- EVDS3 endpoint uyumlu istemci (`https://evds3.tcmb.gov.tr/igmevdsms-dis`)
 - Enflasyon (TÜFE), döviz kurları, faiz oranları, cari denge, GSYH, işsizlik ve para arzı verileri
 - Çoklu seri desteği ile karşılaştırmalı analiz
 - Otomatik tarih formatı algılama ve dönüştürme
@@ -45,7 +46,7 @@ TCMB Elektronik Veri Dağıtım Sistemi (EVDS) API entegrasyonu ile Türkiye eko
 
 ### 1. API Anahtarı Edinme
 EVDS API anahtarı almak için:
-1. [evds2.tcmb.gov.tr](https://evds2.tcmb.gov.tr) adresine gidin
+1. [evds3.tcmb.gov.tr](https://evds3.tcmb.gov.tr) adresine gidin
 2. Üye olun veya giriş yapın
 3. Profil sayfasından API anahtarınızı kopyalayın
 

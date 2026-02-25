@@ -28,7 +28,7 @@ API_KEY = "kullanici_api_key"
 headers = {'key': API_KEY}
 
 # URL formatı: parametreler & ile ayrılmış, URL path içinde
-url = "https://evds2.tcmb.gov.tr/service/evds/series=TP.DK.USD.A&startDate=01-01-2024&endDate=31-12-2024&type=json"
+url = "https://evds3.tcmb.gov.tr/igmevdsms-dis/series=TP.DK.USD.A&startDate=01-01-2024&endDate=31-12-2024&type=json"
 
 response = requests.get(url, headers=headers, timeout=60)
 data = response.json()
@@ -37,7 +37,7 @@ data = response.json()
 ### Yanlış Format (Artık Çalışmıyor)
 ```python
 # ❌ Query string ile parametre geçme ÇALIŞMAZ
-url = "https://evds2.tcmb.gov.tr/service/evds"
+url = "https://evds3.tcmb.gov.tr/igmevdsms-dis"
 params = {'series': 'TP.DK.USD.A', 'startDate': '01-01-2024', ...}
 requests.get(url, params=params)  # 404 verir!
 
@@ -48,19 +48,19 @@ url = "...&key=API_KEY"  # 403/404 verir!
 ### Çoklu Seri Çekme
 ```python
 # Seriler tire (-) ile ayrılır
-url = "https://evds2.tcmb.gov.tr/service/evds/series=TP.DK.USD.A-TP.DK.EUR.A&startDate=01-01-2024&endDate=31-12-2024&type=json"
+url = "https://evds3.tcmb.gov.tr/igmevdsms-dis/series=TP.DK.USD.A-TP.DK.EUR.A&startDate=01-01-2024&endDate=31-12-2024&type=json"
 ```
 
 ### Metadata Endpoint'leri (Seri Keşfi İçin)
 ```python
 # Kategorileri listele
-url = "https://evds2.tcmb.gov.tr/service/evds/categories/type=json"
+url = "https://evds3.tcmb.gov.tr/igmevdsms-dis/categories/type=json"
 
 # Veri gruplarını listele
-url = "https://evds2.tcmb.gov.tr/service/evds/datagroups/mode=0&type=json"
+url = "https://evds3.tcmb.gov.tr/igmevdsms-dis/datagroups/mode=0&type=json"
 
 # Bir gruptaki serileri listele
-url = "https://evds2.tcmb.gov.tr/service/evds/serieList/type=json&code=bie_tukfiy4"
+url = "https://evds3.tcmb.gov.tr/igmevdsms-dis/serieList/type=json&code=bie_tukfiy4"
 ```
 
 ## RENK PALETI (orhon-viz uyumlu)
@@ -129,19 +129,37 @@ df['yillik_degisim'] = df['endeks'].pct_change(12) * 100
 
 ```python
 import pandas as pd
+import re
 
 def parse_evds_tarih(df):
     """EVDS tarih formatını otomatik algıla ve parse et."""
-    tarih_col = df['Tarih'].iloc[0]
-    
-    if '-' in str(tarih_col):
-        parcalar = str(tarih_col).split('-')
-        if len(parcalar[0]) == 4:
-            # Aylık format: 2024-1 veya 2024-12
-            df['Tarih'] = pd.to_datetime(df['Tarih'], format='%Y-%m')
-        else:
-            # Günlük/Haftalık format: 07-01-2024
-            df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d-%m-%Y')
+    tarih_serisi = df['Tarih'].astype(str).str.strip()
+    ornek = tarih_serisi.iloc[0]
+
+    if re.match(r'^\d{4}-\d{1,2}$', ornek):
+        # Aylık: 2024-1 / 2024-12
+        parsed = pd.to_datetime(tarih_serisi, format='%Y-%m')
+    elif re.match(r'^\d{2}-\d{2}-\d{4}$', ornek):
+        # Günlük/Haftalık: 07-01-2024
+        parsed = pd.to_datetime(tarih_serisi, format='%d-%m-%Y')
+    elif re.match(r'^\d{4}-Q[1-4]$', ornek):
+        # Çeyreklik: 2024-Q1 -> 2024-01-01
+        ceyrek_map = {'Q1': '01', 'Q2': '04', 'Q3': '07', 'Q4': '10'}
+        aylik = tarih_serisi.str.replace(
+            r'^(\d{4})-(Q[1-4])$',
+            lambda m: f"{m.group(1)}-{ceyrek_map[m.group(2)]}",
+            regex=True
+        )
+        parsed = pd.to_datetime(aylik, format='%Y-%m')
+    elif re.match(r'^\d{4}$', ornek):
+        # Yıllık: 2024
+        parsed = pd.to_datetime(tarih_serisi, format='%Y')
+    else:
+        parsed = pd.to_datetime(tarih_serisi, errors='coerce', dayfirst=True)
+        if parsed.isna().all():
+            parsed = pd.to_datetime(tarih_serisi, errors='coerce', format='mixed')
+
+    df['Tarih'] = parsed
     
     return df.set_index('Tarih').sort_index()
 ```
@@ -179,7 +197,7 @@ aylik_df.index = aylik_df.index.to_period('M').to_timestamp()
 ### Adım 1: API Anahtarı Al
 ```
 "EVDS API anahtarınızı girin. 
-(Anahtarınız yoksa: evds2.tcmb.gov.tr → Üye Ol → Profil → API Anahtarı)"
+(Anahtarınız yoksa: evds3.tcmb.gov.tr → Üye Ol → Profil → API Anahtarı)"
 ```
 
 ### Adım 2: Kullanıcı İhtiyacını Anla
@@ -195,7 +213,7 @@ aylik_df.index = aylik_df.index.to_period('M').to_timestamp()
 ```python
 def evds_cek(seri, baslangic, bitis, api_key):
     headers = {'key': api_key}
-    url = f"https://evds2.tcmb.gov.tr/service/evds/series={seri}&startDate={baslangic}&endDate={bitis}&type=json"
+    url = f"https://evds3.tcmb.gov.tr/igmevdsms-dis/series={seri}&startDate={baslangic}&endDate={bitis}&type=json"
     r = requests.get(url, headers=headers, timeout=60)
     
     if r.status_code != 200:

@@ -6,17 +6,19 @@ TCMB Elektronik Veri Dağıtım Sistemi için Python wrapper.
 ÖNEMLİ: 5 Nisan 2024 güncellemesi ile API formatı değişti.
 - URL path formatı kullanılmalı (query string değil)
 - API key header'da gönderilmeli
+- EVDS3 base URL kullanılmalı: https://evds3.tcmb.gov.tr/igmevdsms-dis
 """
 
 import requests
 import pandas as pd
 from datetime import datetime
 from typing import List, Dict, Optional, Union
+import re
 
 class EVDSClient:
     """TCMB EVDS API istemcisi."""
     
-    BASE_URL = "https://evds2.tcmb.gov.tr/service/evds"
+    BASE_URL = "https://evds3.tcmb.gov.tr/igmevdsms-dis"
     
     # Frekans kodları
     FREKANS = {
@@ -38,20 +40,37 @@ class EVDSClient:
         'ilk': 'first', 'son': 'last', 'toplam': 'sum'
     }
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, base_url: Optional[str] = None):
         """
         Parameters:
         -----------
         api_key : str
             EVDS API anahtarı
+        base_url : str, optional
+            EVDS servis URL'i. Varsayılan: EVDS3
         """
         self.api_key = api_key
         self.headers = {'key': api_key}
+        self.base_url = (base_url or self.BASE_URL).rstrip('/')
         self._kategoriler = None
     
-    def _request_metadata(self, endpoint: str) -> dict:
+    def _extract_records(self, data: Union[dict, list], endpoint: str) -> List[dict]:
+        """EVDS yanıtından kayıt listesini çıkarır (dict/list uyumluluğu)."""
+        if isinstance(data, list):
+            return data
+        
+        if isinstance(data, dict):
+            if 'items' in data and isinstance(data['items'], list):
+                return data['items']
+            for key in ('data', 'results', 'result', 'value'):
+                if key in data and isinstance(data[key], list):
+                    return data[key]
+        
+        raise ValueError(f"{endpoint} endpoint'i beklenen veri formatını döndürmedi.")
+    
+    def _request_metadata(self, endpoint: str) -> Union[dict, list]:
         """Metadata endpoint'leri için istek gönderir (kategoriler, seri listesi vb.)."""
-        url = f"{self.BASE_URL}/{endpoint}"
+        url = f"{self.base_url}/{endpoint}"
         
         try:
             response = requests.get(url, headers=self.headers, timeout=30)
@@ -68,7 +87,7 @@ class EVDSClient:
         """Tüm ana kategorileri listeler."""
         if self._kategoriler is None:
             data = self._request_metadata("categories/type=json")
-            self._kategoriler = pd.DataFrame(data)
+            self._kategoriler = pd.DataFrame(self._extract_records(data, "categories"))
         return self._kategoriler
     
     def veri_gruplarini_getir(self, kategori_id: int = None) -> pd.DataFrame:
@@ -86,7 +105,7 @@ class EVDSClient:
             endpoint = "datagroups/mode=0&type=json"
         
         data = self._request_metadata(endpoint)
-        return pd.DataFrame(data)
+        return pd.DataFrame(self._extract_records(data, "datagroups"))
     
     def serileri_getir(self, veri_grubu_kodu: str) -> pd.DataFrame:
         """
@@ -99,7 +118,7 @@ class EVDSClient:
         """
         endpoint = f"serieList/type=json&code={veri_grubu_kodu}"
         data = self._request_metadata(endpoint)
-        return pd.DataFrame(data)
+        return pd.DataFrame(self._extract_records(data, "serieList"))
     
     def veri_cek(
         self,
@@ -141,7 +160,7 @@ class EVDSClient:
         seri_str = "-".join(seriler)
         
         # URL path formatında parametreleri oluştur (5 Nisan 2024 güncellemesi)
-        url = f"{self.BASE_URL}/series={seri_str}&startDate={baslangic}&endDate={bitis}&type=json"
+        url = f"{self.base_url}/series={seri_str}&startDate={baslangic}&endDate={bitis}&type=json"
         
         # Opsiyonel parametreler
         if frekans:
@@ -177,19 +196,32 @@ class EVDSClient:
         except requests.exceptions.RequestException as e:
             raise ConnectionError(f"Bağlantı hatası: {e}")
         
-        if not data or 'items' not in data:
+        if not data:
+            raise ValueError("Veri bulunamadı. Tarih aralığını ve seri kodlarını kontrol edin.")
+        
+        kayitlar = self._extract_records(data, "series")
+        if not kayitlar:
             raise ValueError("Veri bulunamadı. Tarih aralığını ve seri kodlarını kontrol edin.")
         
         # DataFrame oluştur
-        df = pd.DataFrame(data['items'])
+        df = pd.DataFrame(kayitlar)
         
         # Tarih sütununu bul ve parse et
-        tarih_sutunu = 'Tarih' if 'Tarih' in df.columns else df.columns[0]
+        tarih_sutunu = next(
+            (
+                col for col in df.columns
+                if str(col).strip().lower() in {'tarih', 'date', 'tarih_str'}
+            ),
+            df.columns[0]
+        )
         df = self._parse_tarih(df, tarih_sutunu)
         
         # Sayısal sütunları dönüştür
         for col in df.columns:
             if col not in ['UNIXTIME', 'YEARWEEK']:
+                if df[col].dtype == object:
+                    temiz = df[col].astype(str).str.replace(',', '.', regex=False)
+                    df[col] = temiz.replace(r'^\s*$', pd.NA, regex=True)
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
         # Gereksiz sütunları kaldır
@@ -206,24 +238,46 @@ class EVDSClient:
         Formatlar:
         - Aylık: 2024-1, 2024-12
         - Günlük/Haftalık: 01-01-2024, 07-01-2024
+        - Çeyreklik: 2024-Q1
+        - Yıllık: 2024
         """
-        tarih_str = str(df[tarih_sutunu].iloc[0])
+        tarih_serisi = df[tarih_sutunu].astype(str).str.strip()
+        if tarih_serisi.empty:
+            raise ValueError("Tarih sütunu boş.")
         
-        if '-' in tarih_str:
-            parcalar = tarih_str.split('-')
-            if len(parcalar[0]) == 4:
-                # Aylık format: 2024-1 veya 2024-12
-                df[tarih_sutunu] = pd.to_datetime(df[tarih_sutunu], format='%Y-%m')
-            else:
-                # Günlük/Haftalık format: 01-01-2024
-                df[tarih_sutunu] = pd.to_datetime(df[tarih_sutunu], format='%d-%m-%Y')
+        ornek = str(tarih_serisi.iloc[0])
+        
+        if re.match(r'^\d{4}-\d{1,2}$', ornek):
+            # Aylık: 2024-1, 2024-12
+            parsed = pd.to_datetime(tarih_serisi, format='%Y-%m')
+        elif re.match(r'^\d{2}-\d{2}-\d{4}$', ornek):
+            # Günlük: 01-01-2024
+            parsed = pd.to_datetime(tarih_serisi, format='%d-%m-%Y')
+        elif re.match(r'^\d{4}-Q[1-4]$', ornek):
+            # Çeyreklik: 2024-Q1 -> 2024-01-01
+            quarter_map = {'Q1': '01', 'Q2': '04', 'Q3': '07', 'Q4': '10'}
+            aylik = tarih_serisi.str.replace(
+                r'^(\d{4})-(Q[1-4])$',
+                lambda m: f"{m.group(1)}-{quarter_map[m.group(2)]}",
+                regex=True
+            )
+            parsed = pd.to_datetime(aylik, format='%Y-%m')
+        elif re.match(r'^\d{4}$', ornek):
+            # Yıllık: 2024
+            parsed = pd.to_datetime(tarih_serisi, format='%Y')
         else:
-            # Fallback
-            df[tarih_sutunu] = pd.to_datetime(df[tarih_sutunu], format='mixed')
+            # Fallback: önce gün-öncelikli, gerekirse mixed
+            parsed = pd.to_datetime(tarih_serisi, errors='coerce', dayfirst=True)
+            if parsed.isna().all():
+                parsed = pd.to_datetime(tarih_serisi, errors='coerce', format='mixed')
+            if parsed.isna().all():
+                raise ValueError(f"Tarih formatı çözümlenemedi: {ornek}")
+        
+        df[tarih_sutunu] = parsed
         
         df = df.set_index(tarih_sutunu)
         df.index.name = 'Tarih'
-        return df
+        return df.sort_index()
     
     def seri_ara(self, anahtar_kelime: str) -> Dict[str, str]:
         """
