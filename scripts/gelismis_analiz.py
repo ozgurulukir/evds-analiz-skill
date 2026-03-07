@@ -165,7 +165,7 @@ def veri_kalitesi_kontrolu(df: pd.DataFrame) -> Dict:
             if len(eksik_tarihler) > 0:
                 rapor['puan'] -= min(10, len(eksik_tarihler))
                 rapor['uyarilar'].append(f"⚠️ Zaman serisinde {len(eksik_tarihler)} eksik tarih var")
-                rapor['zaman_serisi']['eksik_tarihler_ornek'] = [d.strftime('%Y-%m-%d') for d in eksik_tarihler[:5]]
+                rapor['zaman_serisi']['eksik_tarihler_ornek'] = eksik_tarihler[:5].strftime('%Y-%m-%d').tolist()
     
     # Final puan
     rapor['puan'] = max(0, rapor['puan'])
@@ -821,7 +821,7 @@ def dashboard_olustur(
     
     # Zaman serisi verileri
     if isinstance(df.index, pd.DatetimeIndex):
-        tarihler = [d.strftime('%Y-%m-%d') for d in df.index]
+        tarihler = df.index.strftime('%Y-%m-%d').tolist()
     else:
         tarihler = list(range(len(df)))
     
