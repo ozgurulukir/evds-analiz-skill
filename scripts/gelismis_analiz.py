@@ -92,14 +92,19 @@ def veri_kalitesi_kontrolu(df: pd.DataFrame) -> Dict:
         rapor['uyarilar'].append(f"⚠️ {rapor['genel']['duplicate_satir']} duplicate satır bulundu")
     
     # Sütun bazlı analiz
+    isna_sums = df.isna().sum()
+    n_unique = df.nunique()
+
     for col in df.columns:
         seri = df[col]
+        col_len = len(seri)
+
         col_info = {
             'tip': str(seri.dtype),
-            'eksik': seri.isna().sum(),
-            'eksik_oran': round(seri.isna().sum() / len(seri) * 100, 2),
-            'benzersiz': seri.nunique(),
-            'benzersiz_oran': round(seri.nunique() / len(seri) * 100, 2)
+            'eksik': int(isna_sums[col]),
+            'eksik_oran': round(float(isna_sums[col]) / col_len * 100, 2) if col_len > 0 else 0.0,
+            'benzersiz': int(n_unique[col]),
+            'benzersiz_oran': round(float(n_unique[col]) / col_len * 100, 2) if col_len > 0 else 0.0
         }
         
         # Sayısal sütunlar için ek analiz
