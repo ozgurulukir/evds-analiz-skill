@@ -11,29 +11,32 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+import itertools
+
 def korelasyon_analizi(df: pd.DataFrame, metot: str = 'pearson') -> Dict:
     """Korelasyon analizi yapar."""
     corr = df.corr(method=metot)
     
     yorumlar = []
-    for i in range(len(corr.columns)):
-        for j in range(i + 1, len(corr.columns)):
-            r = corr.iloc[i, j]
-            col1, col2 = corr.columns[i], corr.columns[j]
-            
-            if abs(r) >= 0.8:
-                guc = "cok guclu"
-            elif abs(r) >= 0.6:
-                guc = "guclu"
-            elif abs(r) >= 0.4:
-                guc = "orta"
-            elif abs(r) >= 0.2:
-                guc = "zayif"
-            else:
-                guc = "ihmal edilebilir"
-            
-            yon = "pozitif" if r > 0 else "negatif"
-            yorumlar.append({'seri1': col1, 'seri2': col2, 'r': round(r, 3), 'guc': guc, 'yon': yon})
+    cols = corr.columns
+    for i, j in itertools.combinations(range(len(cols)), 2):
+        r = corr.iloc[i, j]
+        col1, col2 = cols[i], cols[j]
+
+        abs_r = abs(r)
+        if abs_r >= 0.8:
+            guc = "cok guclu"
+        elif abs_r >= 0.6:
+            guc = "guclu"
+        elif abs_r >= 0.4:
+            guc = "orta"
+        elif abs_r >= 0.2:
+            guc = "zayif"
+        else:
+            guc = "ihmal edilebilir"
+
+        yon = "pozitif" if r > 0 else "negatif"
+        yorumlar.append({'seri1': col1, 'seri2': col2, 'r': round(r, 3), 'guc': guc, 'yon': yon})
     
     return {'matris': corr, 'yorumlar': yorumlar}
 
