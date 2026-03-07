@@ -227,7 +227,7 @@ class EVDSClient:
             obj_cols = df[cols_to_convert].select_dtypes(include=['object']).columns
             if not obj_cols.empty:
                 # Virgülleri noktaya çevir ve boşlukları NA yap (vectorized)
-                df[obj_cols] = df[obj_cols].astype(str).replace(',', '.', regex=True).replace(r'^\s*$', pd.NA, regex=True)
+                df[obj_cols] = df[obj_cols].replace(',', '.', regex=True).replace(r'^\s*$', pd.NA, regex=True)
 
             # Sayısal dönüşümü toplu yap
             df[cols_to_convert] = df[cols_to_convert].apply(pd.to_numeric, errors='coerce')
