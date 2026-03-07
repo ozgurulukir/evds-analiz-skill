@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional, Union
 import json
+import html
 
 # orhon-viz Renk Paleti
 COLORS = {
@@ -103,10 +104,10 @@ def cizgi_grafik(
         'margin': {'l': 60, 'r': 30, 't': 80, 'b': 60}
     }
     
-    html = _html_sablonu(traces, layout, baslik)
+    html_content = _html_sablonu(traces, layout, baslik)
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(html_content)
     
     return dosya_adi
 
@@ -179,10 +180,10 @@ def coklu_eksen_grafik(
         'hovermode': 'x unified'
     }
     
-    html = _html_sablonu(traces, layout, baslik)
+    html_content = _html_sablonu(traces, layout, baslik)
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(html_content)
     
     return dosya_adi
 
@@ -249,10 +250,10 @@ def korelasyon_matrisi_grafik(
         'margin': {'l': 100, 'r': 50, 't': 80, 'b': 100}
     }
     
-    html = _html_sablonu([trace], layout, baslik)
+    html_content = _html_sablonu([trace], layout, baslik)
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(html_content)
     
     return dosya_adi
 
@@ -287,10 +288,10 @@ def bar_grafik(
         'margin': {'b': 100}
     }
     
-    html = _html_sablonu([trace], layout, baslik)
+    html_content = _html_sablonu([trace], layout, baslik)
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(html_content)
     
     return dosya_adi
 
@@ -329,10 +330,10 @@ def mevsimsellik_grafik(
         'legend': {'orientation': 'h', 'y': 1.05}
     }
     
-    html = _html_sablonu(traces, layout, baslik)
+    html_content = _html_sablonu(traces, layout, baslik)
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(html_content)
     
     return dosya_adi
 
@@ -382,10 +383,10 @@ def tahmin_grafik(
         'hovermode': 'x unified'
     }
     
-    html = _html_sablonu(traces, layout, baslik)
+    html_content = _html_sablonu(traces, layout, baslik)
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
-        f.write(html)
+        f.write(html_content)
     
     return dosya_adi
 
@@ -397,7 +398,7 @@ def _html_sablonu(traces: List[dict], layout: dict, baslik: str) -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{baslik}</title>
+    <title>{html.escape(baslik)}</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         body {{
@@ -422,8 +423,8 @@ def _html_sablonu(traces: List[dict], layout: dict, baslik: str) -> str:
     <div class="baslik">Kaynak: TCMB EVDS</div>
     <div id="grafik"></div>
     <script>
-        var traces = {json.dumps(traces)};
-        var layout = {json.dumps(layout)};
+        var traces = {json.dumps(traces).replace("<", "\\u003c")};
+        var layout = {json.dumps(layout).replace("<", "\\u003c")};
         var config = {{
             responsive: true,
             displayModeBar: true,
