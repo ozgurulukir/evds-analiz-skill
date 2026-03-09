@@ -400,12 +400,13 @@ def tahmin_grafik(
 
 def _html_sablonu(traces: List[dict], layout: dict, baslik: str) -> str:
     """Plotly HTML şablonu oluşturur."""
+    baslik_esc = html.escape(baslik)
     return f"""<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{html.escape(baslik)}</title>
+    <title>{baslik_esc}</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         body {{
