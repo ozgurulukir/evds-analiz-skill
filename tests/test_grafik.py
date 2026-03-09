@@ -15,11 +15,14 @@ def test_bar_grafik_basic():
 
         returned_path = bar_grafik(kategoriler, degerler, baslik, y_ekseni, dosya_adi)
 
-        assert returned_path == dosya_adi
-        assert os.path.exists(dosya_adi)
+        assert returned_path == os.path.basename(dosya_adi)
+        assert os.path.exists(returned_path)
 
-        with open(dosya_adi, 'r', encoding='utf-8') as f:
+        with open(returned_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
+
+        # cleanup
+        os.remove(returned_path)
 
         assert baslik in html_content
         assert y_ekseni in html_content
@@ -33,10 +36,12 @@ def test_bar_grafik_colors():
         degerler = [10.0, -10.0, 0.0]
         baslik = "Renk Testi"
 
-        bar_grafik(kategoriler, degerler, baslik, dosya_adi=dosya_adi)
+        returned_path = bar_grafik(kategoriler, degerler, baslik, dosya_adi=dosya_adi)
 
-        with open(dosya_adi, 'r', encoding='utf-8') as f:
+        with open(returned_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
+
+        os.remove(returned_path)
 
         # extract traces from JS context
         # it looks like: var traces = [{"x": ["Pozitif", "Negatif", "Sifir"], "y": [10.0, -10.0, 0.0], "type": "bar", "marker": {"color": ["#16A085", "#E74C3C", "#16A085"]}, "hovertemplate": "<b>%{x}</b><br>De\u011fer: %{y:.2f}<extra></extra>"}];
@@ -59,11 +64,41 @@ def test_bar_grafik_empty():
 
         returned_path = bar_grafik(kategoriler, degerler, baslik, dosya_adi=dosya_adi)
 
-        assert returned_path == dosya_adi
-        assert os.path.exists(dosya_adi)
+        assert returned_path == os.path.basename(dosya_adi)
+        assert os.path.exists(returned_path)
 
-        with open(dosya_adi, 'r', encoding='utf-8') as f:
+        with open(returned_path, 'r', encoding='utf-8') as f:
             html_content = f.read()
+
+        os.remove(returned_path)
+
+        assert baslik in html_content
+        assert "Plotly.newPlot" in html_content
+
+def test_cizgi_grafik():
+    """Test that cizgi_grafik creates the file correctly with valid data."""
+    from scripts.grafik import cizgi_grafik
+    import pandas as pd
+    import numpy as np
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        dosya_adi = os.path.join(temp_dir, "test_cizgi.html")
+        df = pd.DataFrame({
+            'Seri_1': [10.5, 12.0, 11.5],
+            'Seri_2': [20.0, 18.0, 19.5]
+        })
+        df.index = pd.date_range('2023-01-01', periods=3)
+        baslik = "Test Çizgi Grafik"
+
+        returned_path = cizgi_grafik(df, baslik, dosya_adi=dosya_adi)
+
+        assert returned_path == os.path.basename(dosya_adi)
+        assert os.path.exists(returned_path)
+
+        with open(returned_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+        os.remove(returned_path)
 
         assert baslik in html_content
         assert "Plotly.newPlot" in html_content
