@@ -328,7 +328,10 @@ def anomali_tespiti(
             'anomali_oran': round(len(anomaliler) / len(seri) * 100, 2),
             'anomali_indeksler': anomaliler.index.tolist(),
             'anomali_degerler': anomaliler.values.tolist(),
-            'sinirlar': (round(alt, 4) if alt else None, round(ust, 4) if ust else None),
+            'sinirlar': (
+                round(float(alt), 4) if isinstance(alt, (int, float, np.number)) else (round(float(alt.mean()), 4) if alt is not None else None),
+                round(float(ust), 4) if isinstance(ust, (int, float, np.number)) else (round(float(ust.mean()), 4) if ust is not None else None)
+            ),
             'istatistik': {
                 'ortalama': round(seri.mean(), 4),
                 'std': round(seri.std(), 4),
