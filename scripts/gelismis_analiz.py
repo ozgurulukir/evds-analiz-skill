@@ -11,7 +11,7 @@ EVDS Gelişmiş Analiz Modülü
 import pandas as pd
 import numpy as np
 import html
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
