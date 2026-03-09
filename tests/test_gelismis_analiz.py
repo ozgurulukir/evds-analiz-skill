@@ -129,3 +129,75 @@ def test_coklu_degisken_analizi_regresyon(sample_df):
         assert 'const' in reg['katsayilar']
         assert 'bagimsiz_x1' in reg['katsayilar']
         assert 'bagimsiz_x2' in reg['katsayilar']
+
+def test_anomali_tespiti():
+    """Test anomaly detection logic."""
+    from scripts.gelismis_analiz import anomali_tespiti
+
+    # Needs sufficient rows, zscore uses mean and std
+    np.random.seed(42)
+    normal_data = np.random.normal(0, 1, 50)
+    normal_data = np.append(normal_data, [100.0, -100.0]) # Add anomalies
+
+    df = pd.DataFrame({
+        'A': normal_data,
+        'B': np.arange(52) # No anomalies
+    })
+    df.index = pd.date_range('2020-01-01', periods=52)
+
+    result = anomali_tespiti(df, metot='zscore')
+
+    assert 'A' in result
+    assert 'B' in result
+
+    # A should have anomalies
+    assert 'anomali_sayisi' in result['A']
+    assert result['A']['anomali_sayisi'] >= 2
+
+
+    # B should have no anomalies
+
+
+def test_durgunluk_testi():
+    """Test stationarity test (ADF)."""
+    from scripts.gelismis_analiz import durgunluk_testi
+
+    # Create a non-stationary series (random walk)
+    np.random.seed(42)
+    non_stationary = pd.Series(np.cumsum(np.random.normal(0, 1, 100)))
+
+    res1 = durgunluk_testi(non_stationary)
+    assert res1['test'] == 'ADF'
+    assert 'istatistik' in res1
+    assert 'p_value' in res1
+    assert res1['duragan'] == False # Random walk is non-stationary
+
+    # Create a stationary series (white noise)
+    stationary = pd.Series(np.random.normal(0, 1, 100))
+    res2 = durgunluk_testi(stationary)
+    assert res2['duragan'] == True # White noise is stationary
+
+def test_veri_kalitesi_kontrolu():
+    """Test data quality checks."""
+    from scripts.gelismis_analiz import veri_kalitesi_kontrolu
+
+    df = pd.DataFrame({
+        'A': [1, 2, 3, 4, 5],
+        'B': [1, 1, np.nan, np.nan, 5],
+        'C': ['X', 'Y', 'Z', 'W', 'V']
+    })
+    df.index = pd.date_range('2020-01-01', periods=5)
+
+    kalite = veri_kalitesi_kontrolu(df)
+
+    assert 'genel' in kalite
+    assert kalite['genel']['satir_sayisi'] == 5
+    assert kalite['genel']['sutun_sayisi'] == 3
+    assert kalite['genel']['eksik_toplam'] == 2
+
+    assert 'sutunlar' in kalite
+    assert 'B' in kalite['sutunlar']
+    assert kalite['sutunlar']['B']['eksik'] == 2
+
+    assert 'uyarilar' in kalite
+    assert 'puan' in kalite

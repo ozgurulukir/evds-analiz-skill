@@ -185,3 +185,31 @@ def test_veri_cek_missing_data(mock_get, client):
 
     with pytest.raises(ValueError, match="Veri bulunamadı. Tarih aralığını ve seri kodlarını kontrol edin."):
         client.veri_cek(seriler="TP.DK.USD.A", baslangic="01-01-2024", bitis="02-01-2024")
+
+def test_seri_ara(client):
+    """Test searching for a series."""
+    # seri_ara is an offline hardcoded lookup function
+    result = client.seri_ara("enflasyon")
+    assert isinstance(result, dict)
+    assert 'TP.FG.J0' in result
+    assert 'TÜFE' in result['TP.FG.J0']
+
+def test_tanimlayici_istatistikler():
+    """Test basic descriptive statistics generation."""
+    from scripts.evds_client import tanimlayici_istatistikler
+    import pandas as pd
+    import numpy as np
+    df = pd.DataFrame({
+        'A': [1.0, 2.0, 3.0, 4.0, 5.0],
+        'B': [10, 20, 30, 40, np.nan]
+    })
+    df.index = pd.date_range('2020-01-01', periods=5)
+
+    stats = tanimlayici_istatistikler(df)
+
+    assert 'A' in stats
+    assert 'B' in stats
+    assert stats['A']['gozlem'] == 5
+    assert stats['A']['ortalama'] == 3.0
+    assert stats['B']['gozlem'] == 4
+    assert stats['B']['min'] == 10.0

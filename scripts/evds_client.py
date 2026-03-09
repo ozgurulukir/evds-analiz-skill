@@ -250,10 +250,10 @@ class EVDSClient:
         cols_to_convert = [col for col in df.columns if col not in ['UNIXTIME', 'YEARWEEK']]
         if cols_to_convert:
             # Sadece object (string) sütunlarda temizlik yap
-            obj_cols = df[cols_to_convert].select_dtypes(include=['object']).columns
+            obj_cols = df[cols_to_convert].select_dtypes(include=['object', 'string']).columns
             if not obj_cols.empty:
                 # Virgülleri noktaya çevir (vectorized). str.replace ile df.replace(regex=True)'ye göre çok daha hızlı
-                df[obj_cols] = df[obj_cols].apply(lambda x: x.str.replace(',', '.', regex=False))
+                df[obj_cols] = df[obj_cols].apply(lambda x: x.astype(str).str.replace(',', '.', regex=False))
 
             # Sayısal dönüşümü toplu yap (boşluklar otomatik NaN olur)
             df[cols_to_convert] = df[cols_to_convert].apply(pd.to_numeric, errors='coerce')
