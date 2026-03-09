@@ -38,6 +38,246 @@ COLORS = {
 PALETTE = ['#2C3E50', '#E74C3C', '#3498DB', '#F39C12', '#16A085', '#9B59B6', '#27AE60']
 
 
+DASHBOARD_TEMPLATE = """<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{baslik_esc}</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f6fa;
+            color: {color_text};
+            padding: 20px;
+        }}
+        .dashboard {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+        .header {{
+            background: linear-gradient(135deg, {color_primary}, {color_secondary});
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }}
+        .header h1 {{ font-size: 28px; margin-bottom: 5px; }}
+        .header p {{ opacity: 0.9; font-size: 14px; }}
+
+        .grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }}
+        .card {{
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }}
+        .card-title {{
+            font-size: 14px;
+            color: {color_text_secondary};
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }}
+        .metric {{
+            font-size: 36px;
+            font-weight: 700;
+            color: {color_primary};
+        }}
+        .metric-sub {{ font-size: 14px; color: {color_text_secondary}; }}
+
+        .chart-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }}
+        .chart {{ height: 400px; }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }}
+        th, td {{
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid {color_grid};
+        }}
+        th {{
+            background: {color_grid};
+            color: {color_secondary};
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+        }}
+        th:first-child, td:first-child {{ text-align: left; }}
+        tr:hover {{ background: #fafbfc; }}
+
+        .quality-bar {{
+            height: 8px;
+            background: {color_grid};
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }}
+        .quality-fill {{
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }}
+        .quality-good {{ background: {color_success}; }}
+        .quality-medium {{ background: {color_warning}; }}
+        .quality-bad {{ background: {color_danger}; }}
+
+        .anomaly-badge {{
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }}
+        .anomaly-high {{ background: #ffeaea; color: {color_danger}; }}
+        .anomaly-low {{ background: #fff8e6; color: {color_warning}; }}
+
+        .footer {{
+            text-align: center;
+            color: {color_text_secondary};
+            font-size: 12px;
+            padding: 20px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>{baslik_esc}</h1>
+            <p>Oluşturulma: {olusturulma_tarihi} | Kaynak: TCMB EVDS</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Veri Kalitesi</div>
+                <div class="metric">{kalite_puan}/100</div>
+                <div class="metric-sub">{kalite_degerlendirme}</div>
+                <div class="quality-bar">
+                    <div class="quality-fill {quality_class}"
+                         style="width: {kalite_puan}%"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Toplam Gözlem</div>
+                <div class="metric">{toplam_gozlem}</div>
+                <div class="metric-sub">{sutun_sayisi} seri</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Eksik Veri</div>
+                <div class="metric">{eksik_oran}%</div>
+                <div class="metric-sub">{eksik_toplam} hücre</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Anomali Sayısı</div>
+                <div class="metric">{anomali_toplam}</div>
+                <div class="metric-sub">{anomali_seri_sayisi} seride tespit</div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="card-title">Zaman Serisi Trendi</div>
+            <div id="trendChart" class="chart"></div>
+        </div>
+
+        <div class="grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="chart-card">
+                <div class="card-title">Korelasyon Matrisi</div>
+                <div id="corrChart" class="chart"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Özet İstatistikler</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Seri</th>
+                            <th>N</th>
+                            <th>Ort.</th>
+                            <th>Std</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Son</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {stats_html}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {anomali_html}
+
+        <div class="footer">
+            Dashboard by EVDS Analiz Skill | Veri: TCMB EVDS
+        </div>
+    </div>
+
+    <script>
+        // Trend Chart
+        var trendData = {trend_data_json};
+        var tarihler = {tarihler_json};
+
+        var trendTraces = trendData.map(function(s) {{
+            return {{
+                x: tarihler,
+                y: s.data,
+                name: s.name,
+                type: 'scatter',
+                mode: 'lines',
+                line: {{ color: s.color, width: 2 }}
+            }};
+        }});
+
+        Plotly.newPlot('trendChart', trendTraces, {{
+            margin: {{ l: 50, r: 30, t: 20, b: 40 }},
+            xaxis: {{ gridcolor: '{color_grid}' }},
+            yaxis: {{ gridcolor: '{color_grid}' }},
+            hovermode: 'x unified',
+            legend: {{ orientation: 'h', y: 1.1 }}
+        }}, {{ responsive: true, displayModeBar: false }});
+
+        // Correlation Chart
+        var corrData = {corr_data_json};
+
+        Plotly.newPlot('corrChart', [{{
+            z: corrData.values,
+            x: corrData.labels,
+            y: corrData.labels,
+            type: 'heatmap',
+            colorscale: [
+                [0, '#E74C3C'],
+                [0.5, '#ECF0F1'],
+                [1, '#3498DB']
+            ],
+            zmin: -1,
+            zmax: 1,
+            showscale: true,
+            colorbar: {{ title: 'r' }}
+        }}], {{
+            margin: {{ l: 100, r: 50, t: 20, b: 100 }},
+            xaxis: {{ tickangle: -45 }}
+        }}, {{ responsive: true, displayModeBar: false }});
+    </script>
+</body>
+</html>"""
+
+
 # ============================================================================
 # 1. VERİ KALİTESİ KONTROLÜ
 # ============================================================================
@@ -871,244 +1111,42 @@ def dashboard_olustur(
     # Güvenlik: Kullanıcı verilerini escape et
     baslik_esc = html.escape(baslik)
 
-    html_content = f"""<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{baslik_esc}</title>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f6fa;
-            color: {COLORS['text']};
-            padding: 20px;
-        }}
-        .dashboard {{
-            max-width: 1400px;
-            margin: 0 auto;
-        }}
-        .header {{
-            background: linear-gradient(135deg, {COLORS['primary']}, {COLORS['secondary']});
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }}
-        .header h1 {{ font-size: 28px; margin-bottom: 5px; }}
-        .header p {{ opacity: 0.9; font-size: 14px; }}
-        
-        .grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }}
-        .card {{
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }}
-        .card-title {{
-            font-size: 14px;
-            color: {COLORS['text_secondary']};
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 15px;
-        }}
-        .metric {{
-            font-size: 36px;
-            font-weight: 700;
-            color: {COLORS['primary']};
-        }}
-        .metric-sub {{ font-size: 14px; color: {COLORS['text_secondary']}; }}
-        
-        .chart-card {{
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 20px;
-        }}
-        .chart {{ height: 400px; }}
-        
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: right;
-            border-bottom: 1px solid {COLORS['grid']};
-        }}
-        th {{
-            background: {COLORS['grid']};
-            color: {COLORS['secondary']};
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 11px;
-        }}
-        th:first-child, td:first-child {{ text-align: left; }}
-        tr:hover {{ background: #fafbfc; }}
-        
-        .quality-bar {{
-            height: 8px;
-            background: {COLORS['grid']};
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 10px;
-        }}
-        .quality-fill {{
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.5s ease;
-        }}
-        .quality-good {{ background: {COLORS['success']}; }}
-        .quality-medium {{ background: {COLORS['warning']}; }}
-        .quality-bad {{ background: {COLORS['danger']}; }}
-        
-        .anomaly-badge {{
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-        }}
-        .anomaly-high {{ background: #ffeaea; color: {COLORS['danger']}; }}
-        .anomaly-low {{ background: #fff8e6; color: {COLORS['warning']}; }}
-        
-        .footer {{
-            text-align: center;
-            color: {COLORS['text_secondary']};
-            font-size: 12px;
-            padding: 20px;
-        }}
-    </style>
-</head>
-<body>
-    <div class="dashboard">
-        <div class="header">
-            <h1>{baslik_esc}</h1>
-            <p>Oluşturulma: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Kaynak: TCMB EVDS</p>
-        </div>
-        
-        <div class="grid">
-            <div class="card">
-                <div class="card-title">Veri Kalitesi</div>
-                <div class="metric">{kalite['puan']}/100</div>
-                <div class="metric-sub">{kalite['degerlendirme']}</div>
-                <div class="quality-bar">
-                    <div class="quality-fill {'quality-good' if kalite['puan'] >= 75 else 'quality-medium' if kalite['puan'] >= 50 else 'quality-bad'}" 
-                         style="width: {kalite['puan']}%"></div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-title">Toplam Gözlem</div>
-                <div class="metric">{kalite['genel']['satir_sayisi']:,}</div>
-                <div class="metric-sub">{kalite['genel']['sutun_sayisi']} seri</div>
-            </div>
-            <div class="card">
-                <div class="card-title">Eksik Veri</div>
-                <div class="metric">{kalite['genel']['eksik_oran']}%</div>
-                <div class="metric-sub">{kalite['genel']['eksik_toplam']:,} hücre</div>
-            </div>
-            <div class="card">
-                <div class="card-title">Anomali Sayısı</div>
-                <div class="metric">{sum(a['sayi'] for a in anomali_ozet)}</div>
-                <div class="metric-sub">{len(anomali_ozet)} seride tespit</div>
-            </div>
-        </div>
-        
-        <div class="chart-card">
-            <div class="card-title">Zaman Serisi Trendi</div>
-            <div id="trendChart" class="chart"></div>
-        </div>
-        
-        <div class="grid" style="grid-template-columns: 1fr 1fr;">
-            <div class="chart-card">
-                <div class="card-title">Korelasyon Matrisi</div>
-                <div id="corrChart" class="chart"></div>
-            </div>
-            <div class="card">
-                <div class="card-title">Özet İstatistikler</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Seri</th>
-                            <th>N</th>
-                            <th>Ort.</th>
-                            <th>Std</th>
-                            <th>Min</th>
-                            <th>Max</th>
-                            <th>Son</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {''.join(f"<tr><td>{html.escape(str(s['Seri']))}</td><td>{s['Gözlem']}</td><td>{s['Ortalama']}</td><td>{s['Std']}</td><td>{s['Min']}</td><td>{s['Max']}</td><td>{s['Son']}</td></tr>" for s in stats_data)}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        {'<div class="card"><div class="card-title">Tespit Edilen Anomaliler</div><table><thead><tr><th>Seri</th><th>Anomali Sayısı</th><th>Oran</th></tr></thead><tbody>' + ''.join(f"<tr><td>{html.escape(str(a['seri']))}</td><td>{a['sayi']}</td><td><span class=\\'anomaly-badge {'anomaly-high' if a['oran'] > 5 else 'anomaly-low'}\\'>{a['oran']}%</span></td></tr>" for a in anomali_ozet) + '</tbody></table></div>' if anomali_ozet else ''}
-        
-        <div class="footer">
-            Dashboard by EVDS Analiz Skill | Veri: TCMB EVDS
-        </div>
-    </div>
+    # Şablon değişkenlerini hazırla
+    olusturulma_tarihi = datetime.now().strftime('%d.%m.%Y %H:%M')
     
-    <script>
-        // Trend Chart
-        var trendData = {json.dumps(series_data).replace('<', '\\u003c')};
-        var tarihler = {json.dumps(tarihler).replace('<', '\\u003c')};
-        
-        var trendTraces = trendData.map(function(s) {{
-            return {{
-                x: tarihler,
-                y: s.data,
-                name: s.name,
-                type: 'scatter',
-                mode: 'lines',
-                line: {{ color: s.color, width: 2 }}
-            }};
-        }});
-        
-        Plotly.newPlot('trendChart', trendTraces, {{
-            margin: {{ l: 50, r: 30, t: 20, b: 40 }},
-            xaxis: {{ gridcolor: '{COLORS['grid']}' }},
-            yaxis: {{ gridcolor: '{COLORS['grid']}' }},
-            hovermode: 'x unified',
-            legend: {{ orientation: 'h', y: 1.1 }}
-        }}, {{ responsive: true, displayModeBar: false }});
-        
-        // Correlation Chart
-        var corrData = {json.dumps(corr_data).replace('<', '\\u003c')};
-        
-        Plotly.newPlot('corrChart', [{{
-            z: corrData.values,
-            x: corrData.labels,
-            y: corrData.labels,
-            type: 'heatmap',
-            colorscale: [
-                [0, '#E74C3C'],
-                [0.5, '#ECF0F1'],
-                [1, '#3498DB']
-            ],
-            zmin: -1,
-            zmax: 1,
-            showscale: true,
-            colorbar: {{ title: 'r' }}
-        }}], {{
-            margin: {{ l: 100, r: 50, t: 20, b: 100 }},
-            xaxis: {{ tickangle: -45 }}
-        }}, {{ responsive: true, displayModeBar: false }});
-    </script>
-</body>
-</html>"""
+    stats_html = ''.join(f"<tr><td>{html.escape(str(s['Seri']))}</td><td>{s['Gözlem']}</td><td>{s['Ortalama']}</td><td>{s['Std']}</td><td>{s['Min']}</td><td>{s['Max']}</td><td>{s['Son']}</td></tr>" for s in stats_data)
+
+    anomali_html = ''
+    if anomali_ozet:
+        anomali_rows = ''.join(f"<tr><td>{html.escape(str(a['seri']))}</td><td>{a['sayi']}</td><td><span class='anomaly-badge {'anomaly-high' if a['oran'] > 5 else 'anomaly-low'}'>{a['oran']}%</span></td></tr>" for a in anomali_ozet)
+        anomali_html = f'<div class="card"><div class="card-title">Tespit Edilen Anomaliler</div><table><thead><tr><th>Seri</th><th>Anomali Sayısı</th><th>Oran</th></tr></thead><tbody>{anomali_rows}</tbody></table></div>'
+
+    html_content = DASHBOARD_TEMPLATE.format(
+        baslik_esc=baslik_esc,
+        olusturulma_tarihi=olusturulma_tarihi,
+        kalite_puan=kalite['puan'],
+        kalite_degerlendirme=kalite['degerlendirme'],
+        quality_class='quality-good' if kalite['puan'] >= 75 else 'quality-medium' if kalite['puan'] >= 50 else 'quality-bad',
+        toplam_gozlem=f"{kalite['genel']['satir_sayisi']:,}",
+        sutun_sayisi=kalite['genel']['sutun_sayisi'],
+        eksik_oran=kalite['genel']['eksik_oran'],
+        eksik_toplam=f"{kalite['genel']['eksik_toplam']:,}",
+        anomali_toplam=sum(a['sayi'] for a in anomali_ozet),
+        anomali_seri_sayisi=len(anomali_ozet),
+        trend_data_json=json.dumps(series_data).replace('<', '\u003c'),
+        tarihler_json=json.dumps(tarihler).replace('<', '\u003c'),
+        corr_data_json=json.dumps(corr_data).replace('<', '\u003c'),
+        stats_html=stats_html,
+        anomali_html=anomali_html,
+        color_primary=COLORS['primary'],
+        color_secondary=COLORS['secondary'],
+        color_text=COLORS['text'],
+        color_text_secondary=COLORS['text_secondary'],
+        color_grid=COLORS['grid'],
+        color_success=COLORS['success'],
+        color_warning=COLORS['warning'],
+        color_danger=COLORS['danger']
+    )
     
     with open(dosya_adi, 'w', encoding='utf-8') as f:
         f.write(html_content)
