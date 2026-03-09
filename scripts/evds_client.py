@@ -134,7 +134,7 @@ class EVDSClient:
         data = self._request_metadata(endpoint)
         return pd.DataFrame(self._extract_records(data, "serieList"))
     
-    def veri_cek(
+    def _build_veri_cek_url(
         self,
         seriler: Union[str, List[str]],
         baslangic: str,
@@ -142,32 +142,8 @@ class EVDSClient:
         frekans: Optional[Union[int, str]] = None,
         formul: Optional[Union[int, str, List]] = None,
         aggregation: Optional[Union[str, List[str]]] = None
-    ) -> pd.DataFrame:
-        """
-        EVDS'den veri çeker.
-        
-        ÖNEMLİ: 5 Nisan 2024'ten itibaren URL path formatı kullanılmalı!
-        
-        Parameters:
-        -----------
-        seriler : str or list
-            Seri kodu veya kodları listesi
-        baslangic : str
-            Başlangıç tarihi (gg-aa-yyyy)
-        bitis : str
-            Bitiş tarihi (gg-aa-yyyy)
-        frekans : int or str, optional
-            Frekans kodu veya adı
-        formul : int or str or list, optional
-            Formül kodu/adı veya listesi
-        aggregation : str or list, optional
-            Aggregation yöntemi
-        
-        Returns:
-        --------
-        pd.DataFrame
-            Tarih indexli veri
-        """
+    ) -> str:
+        """veri_cek metodu için URL oluşturur."""
         # Serileri hazırla
         if isinstance(seriler, str):
             seriler = [seriler]
@@ -195,6 +171,44 @@ class EVDSClient:
             else:
                 agg_str = self.AGGREGATION.get(aggregation.lower(), aggregation)
             url += f"&aggregationTypes={agg_str}"
+
+        return url
+
+    def veri_cek(
+        self,
+        seriler: Union[str, List[str]],
+        baslangic: str,
+        bitis: str,
+        frekans: Optional[Union[int, str]] = None,
+        formul: Optional[Union[int, str, List]] = None,
+        aggregation: Optional[Union[str, List[str]]] = None
+    ) -> pd.DataFrame:
+        """
+        EVDS'den veri çeker.
+
+        ÖNEMLİ: 5 Nisan 2024'ten itibaren URL path formatı kullanılmalı!
+
+        Parameters:
+        -----------
+        seriler : str or list
+            Seri kodu veya kodları listesi
+        baslangic : str
+            Başlangıç tarihi (gg-aa-yyyy)
+        bitis : str
+            Bitiş tarihi (gg-aa-yyyy)
+        frekans : int or str, optional
+            Frekans kodu veya adı
+        formul : int or str or list, optional
+            Formül kodu/adı veya listesi
+        aggregation : str or list, optional
+            Aggregation yöntemi
+
+        Returns:
+        --------
+        pd.DataFrame
+            Tarih indexli veri
+        """
+        url = self._build_veri_cek_url(seriler, baslangic, bitis, frekans, formul, aggregation)
         
         # İstek gönder (key header'da)
         try:
@@ -214,7 +228,11 @@ class EVDSClient:
         kayitlar = self._extract_records(data, "series")
         if not kayitlar:
             raise ValueError("Veri bulunamadı. Tarih aralığını ve seri kodlarını kontrol edin.")
-        
+
+        return self._process_veri_cek_response(kayitlar)
+
+    def _process_veri_cek_response(self, kayitlar: List[dict]) -> pd.DataFrame:
+        """EVDS veri yanıtını işleyip DataFrame olarak döndürür."""
         # DataFrame oluştur
         df = pd.DataFrame(kayitlar)
         
@@ -246,7 +264,7 @@ class EVDSClient:
                 df = df.drop(col, axis=1)
         
         return df.sort_index()
-    
+
     def _parse_tarih(self, df: pd.DataFrame, tarih_sutunu: str) -> pd.DataFrame:
         """
         EVDS tarih formatını otomatik algıla ve parse et.
