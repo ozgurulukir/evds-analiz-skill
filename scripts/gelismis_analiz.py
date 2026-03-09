@@ -8,6 +8,7 @@ EVDS Gelişmiş Analiz Modülü
 - Veri kalitesi kontrolü
 """
 
+import os
 import pandas as pd
 import numpy as np
 import html
@@ -1178,6 +1179,7 @@ def dashboard_olustur(
         color_danger=COLORS['danger']
     )
     
+    dosya_adi = os.path.basename(dosya_adi)
     with open(dosya_adi, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
