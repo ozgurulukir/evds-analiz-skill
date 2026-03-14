@@ -69,8 +69,18 @@ class EVDSClient:
 
         cache_dir = os.path.join(tempfile.gettempdir(), f'evds_cache_{uid}')
 
-        # Klasörü sadece kullanıcının erişebileceği şekilde (0700) oluştur
-        os.makedirs(cache_dir, mode=0o700, exist_ok=True)
+        # Klasörü güvenli bir şekilde oluştur veya doğrula
+        try:
+            os.makedirs(cache_dir, mode=0o700)
+        except FileExistsError:
+            # Klasör zaten var. Güvenlik kontrolleri yap.
+            if not os.path.isdir(cache_dir):
+                raise OSError(f"Önbellek yolu '{cache_dir}' var ancak bir klasör değil.")
+            # Unix sistemlerde sahiplik ve izinleri kontrol et
+            if hasattr(os, 'getuid'):
+                stat = os.stat(cache_dir)
+                if stat.st_uid != os.getuid() or (stat.st_mode & 0o777) != 0o700:
+                    raise OSError(f"Önbellek klasörü '{cache_dir}' güvenli olmayan izinlere veya sahipliğe sahip.")
 
         cache_path = os.path.join(cache_dir, 'evds_cache')
         self.session = requests_cache.CachedSession(cache_path, backend='sqlite', expire_after=3600)
