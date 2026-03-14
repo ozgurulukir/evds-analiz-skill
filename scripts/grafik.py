@@ -139,7 +139,7 @@ def coklu_eksen_grafik(
             'name': col,
             'type': 'scatter',
             'mode': 'lines',
-            'line': {'color': PALETTE[i], 'width': 2.5},
+            'line': {'color': PALETTE[i % len(PALETTE)], 'width': 2.5},
             'yaxis': 'y',
             'hovertemplate': f'<b>{col}</b><br>%{{y:.2f}}<extra></extra>'
         }
@@ -156,7 +156,7 @@ def coklu_eksen_grafik(
             'name': col,
             'type': 'scatter',
             'mode': 'lines',
-            'line': {'color': PALETTE[len(sol_seriler) + i], 'width': 2.5, 'dash': 'dash'},
+            'line': {'color': PALETTE[(len(sol_seriler) + i) % len(PALETTE)], 'width': 2.5, 'dash': 'dash'},
             'yaxis': 'y2',
             'hovertemplate': f'<b>{col}</b><br>%{{y:.2f}}<extra></extra>'
         }
@@ -171,10 +171,10 @@ def coklu_eksen_grafik(
             'tickfont': {'color': PALETTE[0]}
         },
         'yaxis2': {
-            'title': {'text': sag_etiket, 'font': {'color': PALETTE[len(sol_seriler)]}},
+            'title': {'text': sag_etiket, 'font': {'color': PALETTE[len(sol_seriler) % len(PALETTE)]}},
             'overlaying': 'y',
             'side': 'right',
-            'tickfont': {'color': PALETTE[len(sol_seriler)]}
+            'tickfont': {'color': PALETTE[len(sol_seriler) % len(PALETTE)]}
         },
         'plot_bgcolor': COLORS['background'],
         'paper_bgcolor': COLORS['background'],
