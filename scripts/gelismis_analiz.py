@@ -866,26 +866,38 @@ def coklu_degisken_analizi(
     
     # 1. Korelasyon Analizi
     if 'korelasyon' in analizler:
+        pearson = df_temiz.corr(method='pearson')
         sonuclar['korelasyon'] = {
-            'pearson': df_temiz.corr(method='pearson').round(4).to_dict(),
+            'pearson': pearson.round(4).to_dict(),
             'spearman': df_temiz.corr(method='spearman').round(4).to_dict(),
             'kendall': df_temiz.corr(method='kendall').round(4).to_dict()
         }
         
-        # En güçlü ilişkiler
-        pearson = df_temiz.corr(method='pearson')
+        # En güçlü ilişkiler - Vectorized approach
+        cols = pearson.columns
+        n = len(cols)
+
+        # Get indices of the upper triangle (excluding diagonal)
+        row_idx, col_idx = np.triu_indices(n, k=1)
+
+        # Access values directly using .values
+        corr_values = pearson.values[row_idx, col_idx]
+
+        # Find indices of the top 10 absolute correlations
+        top_indices = np.argsort(np.abs(corr_values))[-10:][::-1]
+
         iliskiler = []
-        for i in range(len(pearson.columns)):
-            for j in range(i + 1, len(pearson.columns)):
-                r = pearson.iloc[i, j]
-                iliskiler.append({
-                    'seri1': pearson.columns[i],
-                    'seri2': pearson.columns[j],
-                    'r': round(r, 4),
-                    'r2': round(r**2, 4),
-                    'guc': 'çok güçlü' if abs(r) >= 0.8 else 'güçlü' if abs(r) >= 0.6 else 'orta' if abs(r) >= 0.4 else 'zayıf'
-                })
-        sonuclar['korelasyon']['en_guclu'] = sorted(iliskiler, key=lambda x: abs(x['r']), reverse=True)[:10]
+        for idx in top_indices:
+            i, j = row_idx[idx], col_idx[idx]
+            r = corr_values[idx]
+            iliskiler.append({
+                'seri1': cols[i],
+                'seri2': cols[j],
+                'r': round(float(r), 4),
+                'r2': round(float(r**2), 4),
+                'guc': 'çok güçlü' if abs(r) >= 0.8 else 'güçlü' if abs(r) >= 0.6 else 'orta' if abs(r) >= 0.4 else 'zayıf'
+            })
+        sonuclar['korelasyon']['en_guclu'] = iliskiler
     
     # 2. PCA Analizi
     if 'pca' in analizler:
