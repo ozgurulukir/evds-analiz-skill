@@ -57,10 +57,22 @@ class EVDSClient:
         self._kategoriler = None
         # Cache'i sqlite backend ile kalıcı yapıyoruz ki farklı client instance'ları aynı veriyi tekrar çekmesin.
         # Bu sayede birden fazla client yaratılsa veya betik tekrar çalıştırılsa dahi aynı request 1 saat boyunca tekrar yapılmaz.
-        # Temp klasöründe tutuyoruz ki git reposunu kirletmesin.
+        # Temp klasöründe kullanıcıya özel güvenli bir klasörde tutuyoruz.
         import tempfile
         import os
-        cache_path = os.path.join(tempfile.gettempdir(), 'evds_cache')
+
+        try:
+            uid = os.getuid()
+        except AttributeError:
+            import getpass
+            uid = getpass.getuser()
+
+        cache_dir = os.path.join(tempfile.gettempdir(), f'evds_cache_{uid}')
+
+        # Klasörü sadece kullanıcının erişebileceği şekilde (0700) oluştur
+        os.makedirs(cache_dir, mode=0o700, exist_ok=True)
+
+        cache_path = os.path.join(cache_dir, 'evds_cache')
         self.session = requests_cache.CachedSession(cache_path, backend='sqlite', expire_after=3600)
         self.session.headers.update(self.headers)
     
