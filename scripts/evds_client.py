@@ -12,10 +12,8 @@ TCMB Elektronik Veri Dağıtım Sistemi için Python wrapper.
 import requests
 import requests_cache
 import pandas as pd
-from datetime import datetime
 from typing import List, Dict, Optional, Union
 import re
-import functools
 
 class EVDSClient:
     """TCMB EVDS API istemcisi."""
